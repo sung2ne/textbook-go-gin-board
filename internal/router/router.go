@@ -1,7 +1,9 @@
 package router
 
 import (
+	"goboardapi/internal/auth"
 	"goboardapi/internal/handler"
+	"goboardapi/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -9,14 +11,26 @@ import (
 // Router 라우터
 type Router struct {
 	engine         *gin.Engine
+	tokenService   *auth.TokenService
+	tokenStore     auth.TokenStore
+	authHandler    *handler.AuthHandler
 	postHandler    *handler.PostHandler
 	commentHandler *handler.CommentHandler
 }
 
 // NewRouter 생성자
-func NewRouter(postHandler *handler.PostHandler, commentHandler *handler.CommentHandler) *Router {
+func NewRouter(
+	tokenService *auth.TokenService,
+	tokenStore auth.TokenStore,
+	authHandler *handler.AuthHandler,
+	postHandler *handler.PostHandler,
+	commentHandler *handler.CommentHandler,
+) *Router {
 	return &Router{
 		engine:         gin.Default(),
+		tokenService:   tokenService,
+		tokenStore:     tokenStore,
+		authHandler:    authHandler,
 		postHandler:    postHandler,
 		commentHandler: commentHandler,
 	}
@@ -27,6 +41,18 @@ func (r *Router) Setup() *gin.Engine {
 	// API 버전 그룹
 	v1 := r.engine.Group("/api/v1")
 	{
+		// 인증 라우트
+		authGroup := v1.Group("/auth")
+		{
+			authGroup.POST("/signup", r.authHandler.Signup)
+			authGroup.POST("/login", r.authHandler.Login)
+			authGroup.POST("/refresh", r.authHandler.RefreshToken)
+			authGroup.POST("/logout",
+				middleware.AuthMiddleware(r.tokenService, r.tokenStore),
+				r.authHandler.Logout,
+			)
+		}
+
 		// 게시글 라우트
 		posts := v1.Group("/posts")
 		{

@@ -1,0 +1,55 @@
+package middleware
+
+import (
+	"net/http"
+	"strconv"
+
+	"goboardapi/internal/repository"
+
+	"github.com/gin-gonic/gin"
+)
+
+// RequirePostOwner는 게시글 소유자만 허용합니다.
+func RequirePostOwner(postRepo repository.PostRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := GetCurrentUser(c)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "인증이 필요합니다",
+			})
+			return
+		}
+
+		// 관리자는 통과
+		if claims.Role == "admin" {
+			c.Next()
+			return
+		}
+
+		postID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "잘못된 게시글 ID",
+			})
+			return
+		}
+
+		post, err := postRepo.FindByID(uint(postID))
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+				"error": "게시글을 찾을 수 없습니다",
+			})
+			return
+		}
+
+		// Author 필드로 소유자 검증 (향후 AuthorID로 변경)
+		if post.Author != claims.Username {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": "게시글에 대한 권한이 없습니다",
+			})
+			return
+		}
+
+		c.Next()
+	}
+}
