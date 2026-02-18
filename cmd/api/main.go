@@ -6,6 +6,10 @@ import (
 
 	"goboardapi/internal/config"
 	"goboardapi/internal/database"
+	"goboardapi/internal/handler"
+	"goboardapi/internal/repository"
+	"goboardapi/internal/router"
+	"goboardapi/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,22 +25,24 @@ func main() {
 	gin.SetMode(cfg.Server.Mode)
 
 	// 데이터베이스 연결
-	_, err = database.Init(&cfg.Database)
+	db, err := database.Init(&cfg.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// 라우터 생성
-	r := gin.Default()
+	// 의존성 주입
+	postRepo := repository.NewPostRepository(db)
+	postService := service.NewPostService(postRepo, cfg)
+	postHandler := handler.NewPostHandler(postService)
 
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	// 라우터 설정
+	r := router.NewRouter(postHandler)
+	engine := r.Setup()
 
 	// 서버 시작
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("서버 시작: http://localhost%s", addr)
-	if err := r.Run(addr); err != nil {
+	if err := engine.Run(addr); err != nil {
 		log.Fatal(err)
 	}
 }
