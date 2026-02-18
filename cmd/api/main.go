@@ -1,0 +1,42 @@
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"goboardapi/internal/config"
+	"goboardapi/internal/database"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	// 설정 로드
+	cfg, err := config.Load("config/config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Gin 모드 설정
+	gin.SetMode(cfg.Server.Mode)
+
+	// 데이터베이스 연결
+	_, err = database.Init(&cfg.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 라우터 생성
+	r := gin.Default()
+
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	// 서버 시작
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	log.Printf("서버 시작: http://localhost%s", addr)
+	if err := r.Run(addr); err != nil {
+		log.Fatal(err)
+	}
+}
