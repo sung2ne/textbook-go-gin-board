@@ -29,6 +29,7 @@ func (r *Router) Setup() *gin.Engine {
 		posts := v1.Group("/posts")
 		{
 			posts.GET("", r.postHandler.GetList)
+			posts.GET("/cursor", r.postHandler.GetListByCursor)
 			posts.POST("", r.postHandler.Create)
 			posts.GET("/:id", r.postHandler.GetByID)
 			posts.PUT("/:id", r.postHandler.Update)

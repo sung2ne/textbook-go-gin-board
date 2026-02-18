@@ -56,20 +56,15 @@ func (s *PostService) GetByID(id uint) (*dto.PostResponse, error) {
 	return s.toResponse(post), nil
 }
 
-func (s *PostService) GetList(page, size int) ([]dto.PostListResponse, *dto.Meta, error) {
-	if page < 1 {
-		page = 1
-	}
-	if size < 1 {
-		size = s.cfg.Pagination.DefaultSize
-	}
-	if size > s.cfg.Pagination.MaxSize {
-		size = s.cfg.Pagination.MaxSize
-	}
+func (s *PostService) GetList(page, size int, search *dto.SearchParams, sort *dto.SortParams) ([]dto.PostListResponse, *dto.Meta, error) {
+	pagination := dto.NewPagination(
+		page,
+		size,
+		s.cfg.Pagination.DefaultSize,
+		s.cfg.Pagination.MaxSize,
+	)
 
-	offset := (page - 1) * size
-
-	posts, total, err := s.postRepo.FindAll(offset, size)
+	posts, total, err := s.postRepo.FindAll(pagination, search, sort)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,16 +80,74 @@ func (s *PostService) GetList(page, size int) ([]dto.PostListResponse, *dto.Meta
 		}
 	}
 
-	totalPages := int(total) / size
-	if int(total)%size > 0 {
+	totalPages := int(total) / pagination.Size
+	if int(total)%pagination.Size > 0 {
 		totalPages++
 	}
 
 	meta := &dto.Meta{
-		Page:       page,
-		Size:       size,
+		Page:       pagination.Page,
+		Size:       pagination.Size,
 		Total:      total,
 		TotalPages: totalPages,
+	}
+
+	return list, meta, nil
+}
+
+func (s *PostService) GetListByCursor(cursorStr string, size int) ([]dto.PostListResponse, *dto.CursorMeta, error) {
+	if size < 1 {
+		size = s.cfg.Pagination.DefaultSize
+	}
+	if size > s.cfg.Pagination.MaxSize {
+		size = s.cfg.Pagination.MaxSize
+	}
+
+	// 커서 디코딩
+	var cursor *dto.Cursor
+	if cursorStr != "" {
+		var err error
+		cursor, err = dto.DecodeCursor(cursorStr)
+		if err != nil {
+			return nil, nil, errors.New("유효하지 않은 커서입니다")
+		}
+	}
+
+	// 조회
+	posts, err := s.postRepo.FindAllByCursor(cursor, size)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 다음 페이지 존재 여부 확인
+	hasMore := len(posts) > size
+	if hasMore {
+		posts = posts[:size]
+	}
+
+	// DTO 변환
+	list := make([]dto.PostListResponse, len(posts))
+	for i, post := range posts {
+		list[i] = dto.PostListResponse{
+			ID:        post.ID,
+			Title:     post.Title,
+			Author:    post.Author,
+			Views:     post.Views,
+			CreatedAt: post.CreatedAt,
+		}
+	}
+
+	// 다음 커서 생성
+	var nextCursor string
+	if hasMore && len(posts) > 0 {
+		last := posts[len(posts)-1]
+		c := &dto.Cursor{ID: last.ID, CreatedAt: last.CreatedAt}
+		nextCursor = c.Encode()
+	}
+
+	meta := &dto.CursorMeta{
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
 	}
 
 	return list, meta, nil

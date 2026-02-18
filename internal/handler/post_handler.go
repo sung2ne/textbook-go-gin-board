@@ -59,13 +59,39 @@ func (h *PostHandler) GetList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
 
-	posts, meta, err := h.postService.GetList(page, size)
+	search := &dto.SearchParams{
+		Query:      c.Query("q"),
+		SearchType: c.Query("type"),
+	}
+
+	sort := &dto.SortParams{
+		Sort: c.Query("sort"),
+	}
+
+	posts, meta, err := h.postService.GetList(page, size, search, sort)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "목록 조회에 실패했습니다"))
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.SuccessWithMeta(posts, meta))
+}
+
+func (h *PostHandler) GetListByCursor(c *gin.Context) {
+	cursor := c.Query("cursor")
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
+
+	posts, meta, err := h.postService.GetListByCursor(cursor, size)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse("INVALID_CURSOR", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    posts,
+		"meta":    meta,
+	})
 }
 
 func (h *PostHandler) Update(c *gin.Context) {

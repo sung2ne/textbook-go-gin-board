@@ -33,4 +33,5 @@ type PostListResponse struct {
 	Author    string    `json:"author"`
 	Views     int       `json:"views"`
 	CreatedAt time.Time `json:"created_at"`
+	Highlight string    `json:"highlight,omitempty"` // 검색어 주변 텍스트
 }
