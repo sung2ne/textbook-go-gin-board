@@ -64,6 +64,7 @@ func main() {
 	postService := service.NewPostService(postRepo, likeRepo)
 	commentService := service.NewCommentService(commentRepo, postRepo, notificationSvc)
 	likeService := service.NewLikeService(likeRepo, postRepo)
+	adminService := service.NewAdminService(userRepo, postRepo, commentRepo)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, tokenService)
@@ -71,12 +72,13 @@ func main() {
 	commentHandler := handler.NewCommentHandler(commentService)
 	likeHandler := handler.NewLikeHandler(likeService)
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)
+	adminHandler := handler.NewAdminHandler(adminService)
 
 	// 라우터 설정
 	r := router.NewRouter(
 		tokenService, tokenStore,
 		authHandler, postHandler, commentHandler,
-		likeHandler, notificationHandler,
+		likeHandler, notificationHandler, adminHandler,
 	)
 	engine := r.Setup()
 
