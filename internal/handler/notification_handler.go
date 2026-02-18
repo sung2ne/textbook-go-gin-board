@@ -18,7 +18,17 @@ func NewNotificationHandler(notificationService service.NotificationService) *No
 	return &NotificationHandler{notificationService: notificationService}
 }
 
-// GetNotifications 알림 목록 조회
+// GetNotifications godoc
+// @Summary 알림 목록 조회
+// @Description 페이징된 알림 목록을 반환합니다
+// @Tags notifications
+// @Produce json
+// @Param page query int false "페이지 번호" default(1)
+// @Param size query int false "페이지 크기" default(20)
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /notifications [get]
 func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
@@ -44,7 +54,15 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	}))
 }
 
-// GetUnreadCount 읽지 않은 알림 수 조회
+// GetUnreadCount godoc
+// @Summary 읽지 않은 알림 수 조회
+// @Description 읽지 않은 알림 개수를 반환합니다
+// @Tags notifications
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /notifications/unread-count [get]
 func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 	count, err := h.notificationService.GetUnreadCount(c.Request.Context())
 	if err != nil {
@@ -60,7 +78,16 @@ func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 	})
 }
 
-// MarkAsRead 알림 읽음 처리
+// MarkAsRead godoc
+// @Summary 알림 읽음 처리
+// @Description 특정 알림을 읽음으로 표시합니다
+// @Tags notifications
+// @Produce json
+// @Param id path int true "알림 ID"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} dto.Response "잘못된 요청"
+// @Router /notifications/{id}/read [put]
 func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -77,7 +104,15 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
-// MarkAllAsRead 모든 알림 읽음 처리
+// MarkAllAsRead godoc
+// @Summary 모든 알림 읽음 처리
+// @Description 모든 알림을 읽음으로 표시합니다
+// @Tags notifications
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /notifications/read-all [put]
 func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
 	err := h.notificationService.MarkAllAsRead(c.Request.Context())
 	if err != nil {

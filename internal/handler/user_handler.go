@@ -20,7 +20,15 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
-// GetProfile 프로필 조회
+// GetProfile godoc
+// @Summary 내 프로필 조회
+// @Description 로그인한 사용자의 프로필을 조회합니다
+// @Tags users
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /me/profile [get]
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	profile, err := h.userService.GetProfile(c.Request.Context())
 	if err != nil {
@@ -31,7 +39,18 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse(profile))
 }
 
-// UpdateProfile 프로필 수정
+// UpdateProfile godoc
+// @Summary 프로필 수정
+// @Description 사용자 프로필을 수정합니다
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body dto.UpdateProfileRequest true "프로필 수정 정보"
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 400 {object} dto.Response "유효성 검사 실패"
+// @Failure 409 {object} dto.Response "사용자명 중복"
+// @Router /me/profile [put]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	var req dto.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,7 +67,17 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse(profile))
 }
 
-// ChangePassword 비밀번호 변경
+// ChangePassword godoc
+// @Summary 비밀번호 변경
+// @Description 비밀번호를 변경합니다
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body dto.ChangePasswordRequest true "비밀번호 변경 정보"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} dto.Response "비밀번호 불일치"
+// @Router /me/password [put]
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	var req dto.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -68,7 +97,17 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	})
 }
 
-// Withdraw 회원 탈퇴
+// Withdraw godoc
+// @Summary 회원 탈퇴
+// @Description 회원 탈퇴를 진행합니다
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body dto.WithdrawRequest true "탈퇴 확인 정보"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} dto.Response "비밀번호 불일치"
+// @Router /me [delete]
 func (h *UserHandler) Withdraw(c *gin.Context) {
 	var req dto.WithdrawRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -88,7 +127,17 @@ func (h *UserHandler) Withdraw(c *gin.Context) {
 	})
 }
 
-// GetMyPosts 내 게시글 목록
+// GetMyPosts godoc
+// @Summary 내 게시글 목록
+// @Description 로그인한 사용자가 작성한 게시글 목록을 조회합니다
+// @Tags users
+// @Produce json
+// @Param page query int false "페이지 번호" default(1)
+// @Param size query int false "페이지 크기" default(10)
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /me/posts [get]
 func (h *UserHandler) GetMyPosts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
@@ -117,7 +166,17 @@ func (h *UserHandler) GetMyPosts(c *gin.Context) {
 	}))
 }
 
-// GetMyComments 내 댓글 목록
+// GetMyComments godoc
+// @Summary 내 댓글 목록
+// @Description 로그인한 사용자가 작성한 댓글 목록을 조회합니다
+// @Tags users
+// @Produce json
+// @Param page query int false "페이지 번호" default(1)
+// @Param size query int false "페이지 크기" default(10)
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /me/comments [get]
 func (h *UserHandler) GetMyComments(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
@@ -146,7 +205,15 @@ func (h *UserHandler) GetMyComments(c *gin.Context) {
 	}))
 }
 
-// SearchUsers 사용자 검색 (멘션 자동완성용)
+// SearchUsers godoc
+// @Summary 사용자 검색
+// @Description 멘션 자동완성을 위한 사용자 검색입니다
+// @Tags users
+// @Produce json
+// @Param q query string true "검색어 (2자 이상)"
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Router /users/search [get]
 func (h *UserHandler) SearchUsers(c *gin.Context) {
 	query := c.Query("q")
 	if len(query) < 2 {

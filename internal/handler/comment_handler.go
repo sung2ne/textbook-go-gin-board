@@ -20,7 +20,19 @@ func NewCommentHandler(commentService service.CommentService) *CommentHandler {
 	return &CommentHandler{commentService: commentService}
 }
 
-// Create 댓글 생성
+// Create godoc
+// @Summary 댓글 작성
+// @Description 게시글에 댓글을 작성합니다
+// @Tags comments
+// @Accept json
+// @Produce json
+// @Param postId path int true "게시글 ID"
+// @Param request body dto.CreateCommentRequest true "댓글 정보"
+// @Security Bearer
+// @Success 201 {object} dto.CommentResponse
+// @Failure 400 {object} dto.Response "유효성 검사 실패"
+// @Failure 404 {object} dto.Response "게시글 없음"
+// @Router /posts/{postId}/comments [post]
 func (h *CommentHandler) Create(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("postId"), 10, 32)
 	if err != nil {
@@ -43,7 +55,15 @@ func (h *CommentHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.SuccessResponse(dto.ToCommentResponse(comment)))
 }
 
-// GetByPostID 게시글의 댓글 목록 조회
+// GetByPostID godoc
+// @Summary 댓글 목록 조회
+// @Description 게시글의 댓글 목록을 조회합니다
+// @Tags comments
+// @Produce json
+// @Param postId path int true "게시글 ID"
+// @Success 200 {object} dto.Response
+// @Failure 404 {object} dto.Response "게시글 없음"
+// @Router /posts/{postId}/comments [get]
 func (h *CommentHandler) GetByPostID(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("postId"), 10, 32)
 	if err != nil {
@@ -60,7 +80,19 @@ func (h *CommentHandler) GetByPostID(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse(comments))
 }
 
-// Update 댓글 수정
+// Update godoc
+// @Summary 댓글 수정
+// @Description 댓글을 수정합니다
+// @Tags comments
+// @Accept json
+// @Produce json
+// @Param id path int true "댓글 ID"
+// @Param request body dto.UpdateCommentRequest true "수정 정보"
+// @Security Bearer
+// @Success 200 {object} dto.CommentResponse
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Failure 404 {object} dto.Response "댓글 없음"
+// @Router /comments/{id} [put]
 func (h *CommentHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -83,7 +115,17 @@ func (h *CommentHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse(dto.ToCommentResponse(comment)))
 }
 
-// Delete 댓글 삭제
+// Delete godoc
+// @Summary 댓글 삭제
+// @Description 댓글을 삭제합니다
+// @Tags comments
+// @Produce json
+// @Param id path int true "댓글 ID"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Failure 404 {object} dto.Response "댓글 없음"
+// @Router /comments/{id} [delete]
 func (h *CommentHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

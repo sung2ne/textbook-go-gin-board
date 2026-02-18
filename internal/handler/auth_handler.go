@@ -25,8 +25,17 @@ func NewAuthHandler(authService service.AuthService, tokenService *auth.TokenSer
 	}
 }
 
-// Signup은 회원가입을 처리합니다.
-// POST /api/v1/auth/signup
+// Signup godoc
+// @Summary 회원가입
+// @Description 새 계정을 생성합니다
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.SignupRequest true "회원가입 정보"
+// @Success 201 {object} dto.Response
+// @Failure 400 {object} dto.Response "유효성 검사 실패"
+// @Failure 409 {object} dto.Response "이메일 중복"
+// @Router /auth/signup [post]
 func (h *AuthHandler) Signup(c *gin.Context) {
 	var req dto.SignupRequest
 
@@ -47,8 +56,16 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-// Login은 로그인을 처리합니다.
-// POST /api/v1/auth/login
+// Login godoc
+// @Summary 로그인
+// @Description 이메일과 비밀번호로 로그인합니다
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.LoginRequest true "로그인 정보"
+// @Success 200 {object} dto.Response
+// @Failure 401 {object} dto.Response "인증 실패"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 
@@ -76,8 +93,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// RefreshToken은 토큰을 갱신합니다.
-// POST /api/v1/auth/refresh
+// RefreshToken godoc
+// @Summary 토큰 갱신
+// @Description Refresh Token으로 Access Token을 갱신합니다
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RefreshRequest true "Refresh Token"
+// @Success 200 {object} dto.Response
+// @Failure 401 {object} dto.Response "토큰 만료"
+// @Router /auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req dto.RefreshRequest
 
@@ -107,8 +132,15 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// Logout은 로그아웃을 처리합니다.
-// POST /api/v1/auth/logout
+// Logout godoc
+// @Summary 로그아웃
+// @Description 현재 세션을 종료합니다
+// @Tags auth
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} dto.Response "인증 필요"
+// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	claims := middleware.MustGetCurrentUser(c)
 

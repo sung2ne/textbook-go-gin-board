@@ -19,7 +19,16 @@ func NewLikeHandler(likeService service.LikeService) *LikeHandler {
 	return &LikeHandler{likeService: likeService}
 }
 
-// LikePost 게시글 좋아요
+// LikePost godoc
+// @Summary 게시글 좋아요
+// @Description 게시글에 좋아요를 누릅니다
+// @Tags likes
+// @Produce json
+// @Param id path int true "게시글 ID"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} map[string]interface{} "이미 좋아요"
+// @Router /posts/{id}/like [post]
 func (h *LikeHandler) LikePost(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -39,7 +48,15 @@ func (h *LikeHandler) LikePost(c *gin.Context) {
 	})
 }
 
-// UnlikePost 게시글 좋아요 취소
+// UnlikePost godoc
+// @Summary 좋아요 취소
+// @Description 게시글 좋아요를 취소합니다
+// @Tags likes
+// @Produce json
+// @Param id path int true "게시글 ID"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Router /posts/{id}/like [delete]
 func (h *LikeHandler) UnlikePost(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

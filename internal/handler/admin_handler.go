@@ -20,7 +20,15 @@ func NewAdminHandler(adminService service.AdminService) *AdminHandler {
 	return &AdminHandler{adminService: adminService}
 }
 
-// GetStats 관리자 통계
+// GetStats godoc
+// @Summary 관리자 통계 조회
+// @Description 전체 사이트 통계를 조회합니다
+// @Tags admin
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Router /admin/stats [get]
 func (h *AdminHandler) GetStats(c *gin.Context) {
 	stats, err := h.adminService.GetStats(c.Request.Context())
 	if err != nil {
@@ -31,7 +39,17 @@ func (h *AdminHandler) GetStats(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse(stats))
 }
 
-// ListUsers 사용자 목록
+// ListUsers godoc
+// @Summary 사용자 목록 조회
+// @Description 관리자용 사용자 목록을 조회합니다
+// @Tags admin
+// @Produce json
+// @Param page query int false "페이지 번호" default(1)
+// @Param size query int false "페이지 크기" default(20)
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Router /admin/users [get]
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
@@ -55,7 +73,19 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 	}))
 }
 
-// ChangeRole 역할 변경
+// ChangeRole godoc
+// @Summary 사용자 역할 변경
+// @Description 사용자의 역할을 변경합니다
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path int true "사용자 ID"
+// @Param request body dto.ChangeRoleRequest true "역할 정보"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Failure 404 {object} dto.Response "사용자 없음"
+// @Router /admin/users/{id}/role [put]
 func (h *AdminHandler) ChangeRole(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -81,7 +111,17 @@ func (h *AdminHandler) ChangeRole(c *gin.Context) {
 	})
 }
 
-// DeleteUser 사용자 삭제
+// DeleteUser godoc
+// @Summary 사용자 삭제
+// @Description 관리자가 사용자를 삭제합니다
+// @Tags admin
+// @Produce json
+// @Param id path int true "사용자 ID"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Failure 404 {object} dto.Response "사용자 없음"
+// @Router /admin/users/{id} [delete]
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -101,7 +141,17 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	})
 }
 
-// ForceDeletePost 게시글 강제 삭제
+// ForceDeletePost godoc
+// @Summary 게시글 강제 삭제
+// @Description 관리자가 게시글을 강제 삭제합니다
+// @Tags admin
+// @Produce json
+// @Param id path int true "게시글 ID"
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 403 {object} dto.Response "권한 없음"
+// @Failure 404 {object} dto.Response "게시글 없음"
+// @Router /admin/posts/{id} [delete]
 func (h *AdminHandler) ForceDeletePost(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
