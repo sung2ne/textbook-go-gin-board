@@ -1,0 +1,456 @@
+basePath: /api/v1
+definitions:
+  dto.AuthorInfo:
+    properties:
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  dto.CreatePostRequest:
+    properties:
+      content:
+        type: string
+      title:
+        maxLength: 200
+        type: string
+    required:
+    - content
+    - title
+    type: object
+  dto.ErrorInfo:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.Meta:
+    properties:
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  dto.PostListResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.AuthorInfo'
+      created_at:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+      views:
+        type: integer
+    type: object
+  dto.PostResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.AuthorInfo'
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_liked:
+        type: boolean
+      like_count:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+      views:
+        type: integer
+    type: object
+  dto.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  dto.Response:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/dto.ErrorInfo'
+      meta:
+        $ref: '#/definitions/dto.Meta'
+      success:
+        type: boolean
+    type: object
+  dto.SignupRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      username:
+        maxLength: 50
+        minLength: 2
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  dto.UpdatePostRequest:
+    properties:
+      content:
+        type: string
+      title:
+        maxLength: 200
+        type: string
+    required:
+    - content
+    - title
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: 게시판 API 서버입니다.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Go Board API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 이메일과 비밀번호로 로그인합니다
+      parameters:
+      - description: 로그인 정보
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "401":
+          description: 인증 실패
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: 로그인
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: 현재 세션을 종료합니다
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 인증 필요
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - Bearer: []
+      summary: 로그아웃
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh Token으로 Access Token을 갱신합니다
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "401":
+          description: 토큰 만료
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: 토큰 갱신
+      tags:
+      - auth
+  /auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: 새 계정을 생성합니다
+      parameters:
+      - description: 회원가입 정보
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SignupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "400":
+          description: 유효성 검사 실패
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "409":
+          description: 이메일 중복
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: 회원가입
+      tags:
+      - auth
+  /posts:
+    get:
+      description: 페이징된 게시글 목록을 반환합니다
+      parameters:
+      - default: 1
+        description: 페이지 번호
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 10
+        description: 페이지 크기
+        in: query
+        maximum: 100
+        minimum: 1
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PostListResponse'
+      summary: 게시글 목록 조회
+      tags:
+      - posts
+    post:
+      consumes:
+      - application/json
+      description: 새 게시글을 작성합니다
+      parameters:
+      - description: 게시글 정보
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.PostResponse'
+        "400":
+          description: 유효성 검사 실패
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "401":
+          description: 인증 필요
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - Bearer: []
+      summary: 게시글 작성
+      tags:
+      - posts
+  /posts/{id}:
+    delete:
+      description: 게시글을 삭제합니다
+      parameters:
+      - description: 게시글 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 권한 없음
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "404":
+          description: 게시글 없음
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - Bearer: []
+      summary: 게시글 삭제
+      tags:
+      - posts
+    get:
+      description: ID로 게시글을 조회합니다
+      parameters:
+      - description: 게시글 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PostResponse'
+        "404":
+          description: 게시글 없음
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: 게시글 상세 조회
+      tags:
+      - posts
+    put:
+      consumes:
+      - application/json
+      description: 게시글을 수정합니다
+      parameters:
+      - description: 게시글 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 수정 정보
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdatePostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PostResponse'
+        "403":
+          description: 권한 없음
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "404":
+          description: 게시글 없음
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - Bearer: []
+      summary: 게시글 수정
+      tags:
+      - posts
+  /posts/{id}/like:
+    delete:
+      description: 게시글 좋아요를 취소합니다
+      parameters:
+      - description: 게시글 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 좋아요 취소
+      tags:
+      - likes
+    post:
+      description: 게시글에 좋아요를 누릅니다
+      parameters:
+      - description: 게시글 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 이미 좋아요
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 게시글 좋아요
+      tags:
+      - likes
+securityDefinitions:
+  Bearer:
+    description: 'JWT 인증 토큰. 형식: Bearer {access_token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+tags:
+- description: 인증 관련 API (로그인, 회원가입)
+  name: auth
+- description: 게시글 CRUD API
+  name: posts
+- description: 댓글 CRUD API
+  name: comments
+- description: 좋아요 API
+  name: likes
+- description: 알림 API
+  name: notifications
+- description: 사용자 프로필 API
+  name: users
+- description: 관리자 API
+  name: admin

@@ -6,6 +6,8 @@ import (
 	"goboardapi/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // Router 라우터
@@ -122,6 +124,14 @@ func (r *Router) Setup() *gin.Engine {
 			}
 		}
 	}
+
+	// Swagger UI
+	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(
+		swaggerFiles.Handler,
+		ginSwagger.DeepLinking(true),
+		ginSwagger.DefaultModelsExpandDepth(-1),
+		ginSwagger.DocExpansion("list"),
+	))
 
 	r.engine.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
