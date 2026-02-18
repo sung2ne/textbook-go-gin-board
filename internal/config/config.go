@@ -10,6 +10,8 @@ import (
 type Config struct {
 	Server     ServerConfig
 	Database   DatabaseConfig
+	Redis      RedisConfig
+	JWT        JWTConfig
 	Pagination PaginationConfig
 }
 
@@ -25,6 +27,18 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"password"`
 	Name     string `mapstructure:"name"`
 	SSLMode  string `mapstructure:"sslmode"`
+}
+
+type RedisConfig struct {
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
+}
+
+type JWTConfig struct {
+	SecretKey     string `mapstructure:"secret_key"`
+	AccessExpiry  int    `mapstructure:"access_expiry"`  // 분 단위
+	RefreshExpiry int    `mapstructure:"refresh_expiry"` // 시간 단위
 }
 
 type PaginationConfig struct {
@@ -54,6 +68,8 @@ func Load(path string) (*Config, error) {
 	// 환경 변수 키 매핑
 	viper.BindEnv("database.password", "GOBOARD_DB_PASSWORD")
 	viper.BindEnv("database.host", "GOBOARD_DB_HOST")
+	viper.BindEnv("jwt.secret_key", "GOBOARD_JWT_SECRET")
+	viper.BindEnv("redis.addr", "GOBOARD_REDIS_ADDR")
 
 	// 설정 파일 읽기
 	if err := viper.ReadInConfig(); err != nil {
