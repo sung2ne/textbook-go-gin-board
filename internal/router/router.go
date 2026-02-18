@@ -19,6 +19,7 @@ type Router struct {
 	likeHandler         *handler.LikeHandler
 	notificationHandler *handler.NotificationHandler
 	adminHandler        *handler.AdminHandler
+	userHandler         *handler.UserHandler
 }
 
 // NewRouter 생성자
@@ -31,6 +32,7 @@ func NewRouter(
 	likeHandler *handler.LikeHandler,
 	notificationHandler *handler.NotificationHandler,
 	adminHandler *handler.AdminHandler,
+	userHandler *handler.UserHandler,
 ) *Router {
 	return &Router{
 		engine:              gin.Default(),
@@ -42,6 +44,7 @@ func NewRouter(
 		likeHandler:         likeHandler,
 		notificationHandler: notificationHandler,
 		adminHandler:        adminHandler,
+		userHandler:         userHandler,
 	}
 }
 
@@ -92,6 +95,20 @@ func (r *Router) Setup() *gin.Engine {
 			protected.GET("/notifications/unread-count", r.notificationHandler.GetUnreadCount)
 			protected.PUT("/notifications/:id/read", r.notificationHandler.MarkAsRead)
 			protected.PUT("/notifications/read-all", r.notificationHandler.MarkAllAsRead)
+
+			// 사용자 검색 (멘션 자동완성)
+			protected.GET("/users/search", r.userHandler.SearchUsers)
+
+			// 마이페이지
+			me := protected.Group("/me")
+			{
+				me.GET("/profile", r.userHandler.GetProfile)
+				me.PUT("/profile", r.userHandler.UpdateProfile)
+				me.PUT("/password", r.userHandler.ChangePassword)
+				me.DELETE("", r.userHandler.Withdraw)
+				me.GET("/posts", r.userHandler.GetMyPosts)
+				me.GET("/comments", r.userHandler.GetMyComments)
+			}
 
 			// 관리자 API
 			admin := protected.Group("/admin")

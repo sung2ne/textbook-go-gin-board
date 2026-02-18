@@ -44,6 +44,7 @@ func main() {
 
 	// 인증 서비스
 	passwordService := auth.NewPasswordService()
+	passwordHasher := auth.NewBcryptHasher(auth.DefaultCost)
 	tokenService := auth.NewTokenService(
 		cfg.JWT.SecretKey,
 		time.Duration(cfg.JWT.AccessExpiry)*time.Minute,
@@ -65,6 +66,7 @@ func main() {
 	commentService := service.NewCommentService(commentRepo, postRepo, notificationSvc)
 	likeService := service.NewLikeService(likeRepo, postRepo)
 	adminService := service.NewAdminService(userRepo, postRepo, commentRepo)
+	userService := service.NewUserService(userRepo, postRepo, commentRepo, likeRepo, passwordHasher, db)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, tokenService)
@@ -73,12 +75,14 @@ func main() {
 	likeHandler := handler.NewLikeHandler(likeService)
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)
 	adminHandler := handler.NewAdminHandler(adminService)
+	userHandler := handler.NewUserHandler(userService)
 
 	// 라우터 설정
 	r := router.NewRouter(
 		tokenService, tokenStore,
 		authHandler, postHandler, commentHandler,
 		likeHandler, notificationHandler, adminHandler,
+		userHandler,
 	)
 	engine := r.Setup()
 
