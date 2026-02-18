@@ -56,11 +56,13 @@ func main() {
 	postRepo := repository.NewPostRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	likeRepo := repository.NewLikeRepository(db)
+	notificationRepo := repository.NewNotificationRepository(db)
 
 	// Service
 	authService := service.NewAuthService(userRepo, passwordService, tokenService)
+	notificationSvc := service.NewNotificationService(notificationRepo, userRepo)
 	postService := service.NewPostService(postRepo, likeRepo)
-	commentService := service.NewCommentService(commentRepo, postRepo, nil)
+	commentService := service.NewCommentService(commentRepo, postRepo, notificationSvc)
 	likeService := service.NewLikeService(likeRepo, postRepo)
 
 	// Handler
@@ -68,9 +70,14 @@ func main() {
 	postHandler := handler.NewPostHandler(postService)
 	commentHandler := handler.NewCommentHandler(commentService)
 	likeHandler := handler.NewLikeHandler(likeService)
+	notificationHandler := handler.NewNotificationHandler(notificationSvc)
 
 	// 라우터 설정
-	r := router.NewRouter(tokenService, tokenStore, authHandler, postHandler, commentHandler, likeHandler)
+	r := router.NewRouter(
+		tokenService, tokenStore,
+		authHandler, postHandler, commentHandler,
+		likeHandler, notificationHandler,
+	)
 	engine := r.Setup()
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

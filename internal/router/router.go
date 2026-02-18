@@ -10,13 +10,14 @@ import (
 
 // Router 라우터
 type Router struct {
-	engine         *gin.Engine
-	tokenService   *auth.TokenService
-	tokenStore     auth.TokenStore
-	authHandler    *handler.AuthHandler
-	postHandler    *handler.PostHandler
-	commentHandler *handler.CommentHandler
-	likeHandler    *handler.LikeHandler
+	engine              *gin.Engine
+	tokenService        *auth.TokenService
+	tokenStore          auth.TokenStore
+	authHandler         *handler.AuthHandler
+	postHandler         *handler.PostHandler
+	commentHandler      *handler.CommentHandler
+	likeHandler         *handler.LikeHandler
+	notificationHandler *handler.NotificationHandler
 }
 
 // NewRouter 생성자
@@ -27,15 +28,17 @@ func NewRouter(
 	postHandler *handler.PostHandler,
 	commentHandler *handler.CommentHandler,
 	likeHandler *handler.LikeHandler,
+	notificationHandler *handler.NotificationHandler,
 ) *Router {
 	return &Router{
-		engine:         gin.Default(),
-		tokenService:   tokenService,
-		tokenStore:     tokenStore,
-		authHandler:    authHandler,
-		postHandler:    postHandler,
-		commentHandler: commentHandler,
-		likeHandler:    likeHandler,
+		engine:              gin.Default(),
+		tokenService:        tokenService,
+		tokenStore:          tokenStore,
+		authHandler:         authHandler,
+		postHandler:         postHandler,
+		commentHandler:      commentHandler,
+		likeHandler:         likeHandler,
+		notificationHandler: notificationHandler,
 	}
 }
 
@@ -80,6 +83,12 @@ func (r *Router) Setup() *gin.Engine {
 			protected.POST("/posts/:postId/comments", r.commentHandler.Create)
 			protected.PUT("/comments/:id", r.commentHandler.Update)
 			protected.DELETE("/comments/:id", r.commentHandler.Delete)
+
+			// 알림
+			protected.GET("/notifications", r.notificationHandler.GetNotifications)
+			protected.GET("/notifications/unread-count", r.notificationHandler.GetUnreadCount)
+			protected.PUT("/notifications/:id/read", r.notificationHandler.MarkAsRead)
+			protected.PUT("/notifications/read-all", r.notificationHandler.MarkAllAsRead)
 		}
 	}
 
