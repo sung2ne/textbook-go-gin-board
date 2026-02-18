@@ -6,16 +6,17 @@ import (
 	"strconv"
 
 	"goboardapi/internal/dto"
+	"goboardapi/internal/repository"
 	"goboardapi/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type PostHandler struct {
-	postService *service.PostService
+	postService service.PostService
 }
 
-func NewPostHandler(postService *service.PostService) *PostHandler {
+func NewPostHandler(postService service.PostService) *PostHandler {
 	return &PostHandler{postService: postService}
 }
 
@@ -26,13 +27,13 @@ func (h *PostHandler) Create(c *gin.Context) {
 		return
 	}
 
-	post, err := h.postService.Create(&req)
+	post, err := h.postService.Create(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "게시글 생성에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto.SuccessResponse(post))
+	c.JSON(http.StatusCreated, dto.SuccessResponse(dto.ToPostResponse(post)))
 }
 
 func (h *PostHandler) GetByID(c *gin.Context) {
@@ -42,56 +43,41 @@ func (h *PostHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	post, err := h.postService.GetByID(uint(id))
+	resp, err := h.postService.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrPostNotFound) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "조회에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessResponse(post))
+	c.JSON(http.StatusOK, dto.SuccessResponse(resp))
 }
 
 func (h *PostHandler) GetList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
 
-	search := &dto.SearchParams{
-		Query:      c.Query("q"),
-		SearchType: c.Query("type"),
-	}
-
-	sort := &dto.SortParams{
-		Sort: c.Query("sort"),
-	}
-
-	posts, meta, err := h.postService.GetList(page, size, search, sort)
+	posts, total, err := h.postService.GetAll(c.Request.Context(), page, size)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "목록 조회에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessWithMeta(posts, meta))
-}
-
-func (h *PostHandler) GetListByCursor(c *gin.Context) {
-	cursor := c.Query("cursor")
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
-
-	posts, meta, err := h.postService.GetListByCursor(cursor, size)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse("INVALID_CURSOR", err.Error()))
-		return
+	var responses []*dto.PostListResponse
+	for _, post := range posts {
+		responses = append(responses, dto.ToPostListResponse(post))
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    posts,
-		"meta":    meta,
-	})
+	totalPages := int(total) / size
+	if int(total)%size > 0 {
+		totalPages++
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessWithMeta(responses, &dto.Meta{
+		Page:       page,
+		Size:       size,
+		Total:      total,
+		TotalPages: totalPages,
+	}))
 }
 
 func (h *PostHandler) Update(c *gin.Context) {
@@ -107,17 +93,13 @@ func (h *PostHandler) Update(c *gin.Context) {
 		return
 	}
 
-	post, err := h.postService.Update(uint(id), &req)
+	post, err := h.postService.Update(c.Request.Context(), uint(id), &req)
 	if err != nil {
-		if errors.Is(err, service.ErrPostNotFound) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "수정에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessResponse(post))
+	c.JSON(http.StatusOK, dto.SuccessResponse(dto.ToPostResponse(post)))
 }
 
 func (h *PostHandler) Delete(c *gin.Context) {
@@ -127,15 +109,27 @@ func (h *PostHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	err = h.postService.Delete(uint(id))
+	err = h.postService.Delete(c.Request.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrPostNotFound) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "삭제에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "게시글이 삭제되었습니다",
+	})
+}
+
+func (h *PostHandler) handleError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrUnauthorized):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "인증이 필요합니다"})
+	case errors.Is(err, service.ErrForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"error": "권한이 없습니다"})
+	case errors.Is(err, repository.ErrPostNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "게시글을 찾을 수 없습니다"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "서버 오류"})
+	}
 }

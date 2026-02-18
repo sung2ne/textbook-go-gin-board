@@ -23,7 +23,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Gin 모드 설정
 	gin.SetMode(cfg.Server.Mode)
 
 	// 데이터베이스 연결
@@ -38,7 +37,6 @@ func main() {
 		log.Printf("Redis 연결 실패 (토큰 저장소 비활성화): %v", err)
 	}
 
-	// 토큰 저장소
 	var tokenStore auth.TokenStore
 	if redisClient != nil {
 		tokenStore = auth.NewRedisTokenStore(redisClient)
@@ -53,24 +51,28 @@ func main() {
 		tokenStore,
 	)
 
-	// 의존성 주입
+	// Repository
 	userRepo := repository.NewUserRepository(db)
 	postRepo := repository.NewPostRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
+	likeRepo := repository.NewLikeRepository(db)
 
+	// Service
 	authService := service.NewAuthService(userRepo, passwordService, tokenService)
-	postService := service.NewPostService(postRepo, cfg)
-	commentService := service.NewCommentService(commentRepo, postRepo)
+	postService := service.NewPostService(postRepo, likeRepo)
+	commentService := service.NewCommentService(commentRepo, postRepo, nil)
+	likeService := service.NewLikeService(likeRepo, postRepo)
 
+	// Handler
 	authHandler := handler.NewAuthHandler(authService, tokenService)
 	postHandler := handler.NewPostHandler(postService)
 	commentHandler := handler.NewCommentHandler(commentService)
+	likeHandler := handler.NewLikeHandler(likeService)
 
 	// 라우터 설정
-	r := router.NewRouter(tokenService, tokenStore, authHandler, postHandler, commentHandler)
+	r := router.NewRouter(tokenService, tokenStore, authHandler, postHandler, commentHandler, likeHandler)
 	engine := r.Setup()
 
-	// 서버 시작
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("서버 시작: http://localhost%s", addr)
 	if err := engine.Run(addr); err != nil {

@@ -1,197 +1,126 @@
 package service
 
 import (
-	"errors"
+	"context"
 
-	"goboardapi/internal/config"
+	"goboardapi/internal/auth"
 	"goboardapi/internal/domain"
 	"goboardapi/internal/dto"
+	"goboardapi/internal/middleware"
 	"goboardapi/internal/repository"
-
-	"gorm.io/gorm"
 )
 
-var (
-	ErrPostNotFound = errors.New("게시글을 찾을 수 없습니다")
-)
+type PostService interface {
+	Create(ctx context.Context, req *dto.CreatePostRequest) (*domain.Post, error)
+	GetByID(ctx context.Context, id uint) (*dto.PostResponse, error)
+	GetAll(ctx context.Context, page, size int) ([]*domain.Post, int64, error)
+	Update(ctx context.Context, id uint, req *dto.UpdatePostRequest) (*domain.Post, error)
+	Delete(ctx context.Context, id uint) error
+}
 
-type PostService struct {
+type postService struct {
 	postRepo repository.PostRepository
-	cfg      *config.Config
+	likeRepo repository.LikeRepository
 }
 
-func NewPostService(postRepo repository.PostRepository, cfg *config.Config) *PostService {
-	return &PostService{
+func NewPostService(postRepo repository.PostRepository, likeRepo repository.LikeRepository) PostService {
+	return &postService{
 		postRepo: postRepo,
-		cfg:      cfg,
+		likeRepo: likeRepo,
 	}
 }
 
-func (s *PostService) Create(req *dto.CreatePostRequest) (*dto.PostResponse, error) {
+func (s *postService) Create(ctx context.Context, req *dto.CreatePostRequest) (*domain.Post, error) {
+	claims, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+
 	post := &domain.Post{
-		Title:   req.Title,
-		Content: req.Content,
-		Author:  req.Author,
+		Title:    req.Title,
+		Content:  req.Content,
+		AuthorID: claims.UserID,
 	}
 
-	if err := s.postRepo.Create(post); err != nil {
+	if err := s.postRepo.Create(ctx, post); err != nil {
 		return nil, err
 	}
 
-	return s.toResponse(post), nil
+	return s.postRepo.FindByID(ctx, post.ID)
 }
 
-func (s *PostService) GetByID(id uint) (*dto.PostResponse, error) {
-	post, err := s.postRepo.FindByID(id)
+func (s *postService) GetByID(ctx context.Context, id uint) (*dto.PostResponse, error) {
+	post, err := s.postRepo.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPostNotFound
-		}
 		return nil, err
 	}
 
-	_ = s.postRepo.IncrementViews(id)
-	post.Views++
+	resp := dto.ToPostResponse(post)
 
-	return s.toResponse(post), nil
+	// 로그인 상태면 좋아요 여부 확인
+	if claims, ok := middleware.GetUserFromContext(ctx); ok {
+		isLiked, _ := s.likeRepo.IsLiked(ctx, claims.UserID, id)
+		resp.IsLiked = isLiked
+	}
+
+	return resp, nil
 }
 
-func (s *PostService) GetList(page, size int, search *dto.SearchParams, sort *dto.SortParams) ([]dto.PostListResponse, *dto.Meta, error) {
-	pagination := dto.NewPagination(
-		page,
-		size,
-		s.cfg.Pagination.DefaultSize,
-		s.cfg.Pagination.MaxSize,
-	)
-
-	posts, total, err := s.postRepo.FindAll(pagination, search, sort)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	list := make([]dto.PostListResponse, len(posts))
-	for i, post := range posts {
-		list[i] = dto.PostListResponse{
-			ID:        post.ID,
-			Title:     post.Title,
-			Author:    post.Author,
-			Views:     post.Views,
-			CreatedAt: post.CreatedAt,
-		}
-	}
-
-	totalPages := int(total) / pagination.Size
-	if int(total)%pagination.Size > 0 {
-		totalPages++
-	}
-
-	meta := &dto.Meta{
-		Page:       pagination.Page,
-		Size:       pagination.Size,
-		Total:      total,
-		TotalPages: totalPages,
-	}
-
-	return list, meta, nil
+func (s *postService) GetAll(ctx context.Context, page, size int) ([]*domain.Post, int64, error) {
+	offset := (page - 1) * size
+	return s.postRepo.FindAll(ctx, offset, size)
 }
 
-func (s *PostService) GetListByCursor(cursorStr string, size int) ([]dto.PostListResponse, *dto.CursorMeta, error) {
-	if size < 1 {
-		size = s.cfg.Pagination.DefaultSize
-	}
-	if size > s.cfg.Pagination.MaxSize {
-		size = s.cfg.Pagination.MaxSize
+func (s *postService) Update(ctx context.Context, id uint, req *dto.UpdatePostRequest) (*domain.Post, error) {
+	claims, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		return nil, ErrUnauthorized
 	}
 
-	// 커서 디코딩
-	var cursor *dto.Cursor
-	if cursorStr != "" {
-		var err error
-		cursor, err = dto.DecodeCursor(cursorStr)
-		if err != nil {
-			return nil, nil, errors.New("유효하지 않은 커서입니다")
-		}
-	}
-
-	// 조회
-	posts, err := s.postRepo.FindAllByCursor(cursor, size)
+	post, err := s.postRepo.FindByID(ctx, id)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	// 다음 페이지 존재 여부 확인
-	hasMore := len(posts) > size
-	if hasMore {
-		posts = posts[:size]
-	}
-
-	// DTO 변환
-	list := make([]dto.PostListResponse, len(posts))
-	for i, post := range posts {
-		list[i] = dto.PostListResponse{
-			ID:        post.ID,
-			Title:     post.Title,
-			Author:    post.Author,
-			Views:     post.Views,
-			CreatedAt: post.CreatedAt,
-		}
-	}
-
-	// 다음 커서 생성
-	var nextCursor string
-	if hasMore && len(posts) > 0 {
-		last := posts[len(posts)-1]
-		c := &dto.Cursor{ID: last.ID, CreatedAt: last.CreatedAt}
-		nextCursor = c.Encode()
-	}
-
-	meta := &dto.CursorMeta{
-		NextCursor: nextCursor,
-		HasMore:    hasMore,
-	}
-
-	return list, meta, nil
-}
-
-func (s *PostService) Update(id uint, req *dto.UpdatePostRequest) (*dto.PostResponse, error) {
-	post, err := s.postRepo.FindByID(id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPostNotFound
-		}
 		return nil, err
+	}
+
+	if !s.canModify(post.AuthorID, claims) {
+		return nil, ErrForbidden
 	}
 
 	post.Title = req.Title
 	post.Content = req.Content
 
-	if err := s.postRepo.Update(post); err != nil {
+	if err := s.postRepo.Update(ctx, post); err != nil {
 		return nil, err
 	}
 
-	return s.toResponse(post), nil
+	return post, nil
 }
 
-func (s *PostService) Delete(id uint) error {
-	_, err := s.postRepo.FindByID(id)
+func (s *postService) Delete(ctx context.Context, id uint) error {
+	claims, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		return ErrUnauthorized
+	}
+
+	post, err := s.postRepo.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrPostNotFound
-		}
 		return err
 	}
 
-	return s.postRepo.Delete(id)
+	if !s.canModify(post.AuthorID, claims) {
+		return ErrForbidden
+	}
+
+	return s.postRepo.Delete(ctx, id)
 }
 
-func (s *PostService) toResponse(post *domain.Post) *dto.PostResponse {
-	return &dto.PostResponse{
-		ID:        post.ID,
-		Title:     post.Title,
-		Content:   post.Content,
-		Author:    post.Author,
-		Views:     post.Views,
-		CreatedAt: post.CreatedAt,
-		UpdatedAt: post.UpdatedAt,
+// canModify 수정/삭제 권한 확인
+func (s *postService) canModify(authorID uint, claims *auth.CustomClaims) bool {
+	if authorID == claims.UserID {
+		return true
 	}
+	if claims.Role == string(domain.RoleAdmin) {
+		return true
+	}
+	return false
 }

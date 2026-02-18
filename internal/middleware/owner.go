@@ -34,7 +34,7 @@ func RequirePostOwner(postRepo repository.PostRepository) gin.HandlerFunc {
 			return
 		}
 
-		post, err := postRepo.FindByID(uint(postID))
+		post, err := postRepo.FindByID(c.Request.Context(), uint(postID))
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 				"error": "게시글을 찾을 수 없습니다",
@@ -42,8 +42,8 @@ func RequirePostOwner(postRepo repository.PostRepository) gin.HandlerFunc {
 			return
 		}
 
-		// Author 필드로 소유자 검증 (향후 AuthorID로 변경)
-		if post.Author != claims.Username {
+		// AuthorID로 소유자 검증
+		if post.AuthorID != claims.UserID {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"error": "게시글에 대한 권한이 없습니다",
 			})

@@ -16,6 +16,7 @@ type Router struct {
 	authHandler    *handler.AuthHandler
 	postHandler    *handler.PostHandler
 	commentHandler *handler.CommentHandler
+	likeHandler    *handler.LikeHandler
 }
 
 // NewRouter 생성자
@@ -25,6 +26,7 @@ func NewRouter(
 	authHandler *handler.AuthHandler,
 	postHandler *handler.PostHandler,
 	commentHandler *handler.CommentHandler,
+	likeHandler *handler.LikeHandler,
 ) *Router {
 	return &Router{
 		engine:         gin.Default(),
@@ -33,12 +35,12 @@ func NewRouter(
 		authHandler:    authHandler,
 		postHandler:    postHandler,
 		commentHandler: commentHandler,
+		likeHandler:    likeHandler,
 	}
 }
 
 // Setup 라우트 설정
 func (r *Router) Setup() *gin.Engine {
-	// API 버전 그룹
 	v1 := r.engine.Group("/api/v1")
 	{
 		// 인증 라우트
@@ -53,25 +55,34 @@ func (r *Router) Setup() *gin.Engine {
 			)
 		}
 
-		// 게시글 라우트
+		// 공개 API
 		posts := v1.Group("/posts")
 		{
 			posts.GET("", r.postHandler.GetList)
-			posts.GET("/cursor", r.postHandler.GetListByCursor)
-			posts.POST("", r.postHandler.Create)
 			posts.GET("/:id", r.postHandler.GetByID)
-			posts.PUT("/:id", r.postHandler.Update)
-			posts.DELETE("/:id", r.postHandler.Delete)
-
-			// 댓글 라우트
 			posts.GET("/:postId/comments", r.commentHandler.GetByPostID)
-			posts.POST("/:postId/comments", r.commentHandler.Create)
-			posts.PUT("/:postId/comments/:id", r.commentHandler.Update)
-			posts.DELETE("/:postId/comments/:id", r.commentHandler.Delete)
+		}
+
+		// 인증 필요 API
+		protected := v1.Group("")
+		protected.Use(middleware.AuthMiddleware(r.tokenService, r.tokenStore))
+		{
+			// 게시글 작성/수정/삭제
+			protected.POST("/posts", r.postHandler.Create)
+			protected.PUT("/posts/:id", r.postHandler.Update)
+			protected.DELETE("/posts/:id", r.postHandler.Delete)
+
+			// 좋아요
+			protected.POST("/posts/:id/like", r.likeHandler.LikePost)
+			protected.DELETE("/posts/:id/like", r.likeHandler.UnlikePost)
+
+			// 댓글 작성/수정/삭제
+			protected.POST("/posts/:postId/comments", r.commentHandler.Create)
+			protected.PUT("/comments/:id", r.commentHandler.Update)
+			protected.DELETE("/comments/:id", r.commentHandler.Delete)
 		}
 	}
 
-	// 헬스 체크
 	r.engine.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})

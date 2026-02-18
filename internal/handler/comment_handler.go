@@ -6,21 +6,21 @@ import (
 	"strconv"
 
 	"goboardapi/internal/dto"
+	"goboardapi/internal/repository"
 	"goboardapi/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type CommentHandler struct {
-	commentService *service.CommentService
+	commentService service.CommentService
 }
 
-func NewCommentHandler(commentService *service.CommentService) *CommentHandler {
+func NewCommentHandler(commentService service.CommentService) *CommentHandler {
 	return &CommentHandler{commentService: commentService}
 }
 
 // Create 댓글 생성
-// POST /api/v1/posts/:postId/comments
 func (h *CommentHandler) Create(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("postId"), 10, 32)
 	if err != nil {
@@ -34,21 +34,16 @@ func (h *CommentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.commentService.Create(uint(postID), &req)
+	comment, err := h.commentService.Create(c.Request.Context(), uint(postID), &req)
 	if err != nil {
-		if errors.Is(err, service.ErrPostNotExists) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "댓글 생성에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto.SuccessResponse(comment))
+	c.JSON(http.StatusCreated, dto.SuccessResponse(dto.ToCommentResponse(comment)))
 }
 
 // GetByPostID 게시글의 댓글 목록 조회
-// GET /api/v1/posts/:postId/comments
 func (h *CommentHandler) GetByPostID(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("postId"), 10, 32)
 	if err != nil {
@@ -56,13 +51,9 @@ func (h *CommentHandler) GetByPostID(c *gin.Context) {
 		return
 	}
 
-	comments, err := h.commentService.GetByPostID(uint(postID))
+	comments, err := h.commentService.GetByPostID(c.Request.Context(), uint(postID))
 	if err != nil {
-		if errors.Is(err, service.ErrPostNotExists) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "댓글 조회에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
@@ -70,7 +61,6 @@ func (h *CommentHandler) GetByPostID(c *gin.Context) {
 }
 
 // Update 댓글 수정
-// PUT /api/v1/posts/:postId/comments/:id
 func (h *CommentHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -84,21 +74,16 @@ func (h *CommentHandler) Update(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.commentService.Update(uint(id), &req)
+	comment, err := h.commentService.Update(c.Request.Context(), uint(id), &req)
 	if err != nil {
-		if errors.Is(err, service.ErrCommentNotFound) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "댓글 수정에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessResponse(comment))
+	c.JSON(http.StatusOK, dto.SuccessResponse(dto.ToCommentResponse(comment)))
 }
 
 // Delete 댓글 삭제
-// DELETE /api/v1/posts/:postId/comments/:id
 func (h *CommentHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -106,15 +91,29 @@ func (h *CommentHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	err = h.commentService.Delete(uint(id))
+	err = h.commentService.Delete(c.Request.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrCommentNotFound) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse("NOT_FOUND", err.Error()))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse("SERVER_ERROR", "댓글 삭제에 실패했습니다"))
+		h.handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "댓글이 삭제되었습니다",
+	})
+}
+
+func (h *CommentHandler) handleError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrUnauthorized):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "인증이 필요합니다"})
+	case errors.Is(err, service.ErrForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"error": "권한이 없습니다"})
+	case errors.Is(err, repository.ErrPostNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "게시글을 찾을 수 없습니다"})
+	case errors.Is(err, repository.ErrCommentNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "댓글을 찾을 수 없습니다"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "서버 오류"})
+	}
 }

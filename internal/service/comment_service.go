@@ -1,184 +1,172 @@
 package service
 
 import (
-	"errors"
+	"context"
 
+	"goboardapi/internal/auth"
 	"goboardapi/internal/domain"
 	"goboardapi/internal/dto"
+	"goboardapi/internal/middleware"
 	"goboardapi/internal/repository"
-
-	"gorm.io/gorm"
 )
 
-var (
-	ErrCommentNotFound = errors.New("댓글을 찾을 수 없습니다")
-	ErrPostNotExists   = errors.New("게시글이 존재하지 않습니다")
-)
-
-const MaxReplyDepth = 3
-
-type CommentService struct {
-	commentRepo repository.CommentRepository
-	postRepo    repository.PostRepository
+type CommentService interface {
+	Create(ctx context.Context, postID uint, req *dto.CreateCommentRequest) (*domain.Comment, error)
+	GetByPostID(ctx context.Context, postID uint) ([]*dto.CommentResponse, error)
+	Update(ctx context.Context, id uint, req *dto.UpdateCommentRequest) (*domain.Comment, error)
+	Delete(ctx context.Context, id uint) error
 }
 
-func NewCommentService(commentRepo repository.CommentRepository, postRepo repository.PostRepository) *CommentService {
-	return &CommentService{
-		commentRepo: commentRepo,
-		postRepo:    postRepo,
+type commentService struct {
+	commentRepo     repository.CommentRepository
+	postRepo        repository.PostRepository
+	notificationSvc NotificationService
+}
+
+func NewCommentService(
+	commentRepo repository.CommentRepository,
+	postRepo repository.PostRepository,
+	notificationSvc NotificationService,
+) CommentService {
+	return &commentService{
+		commentRepo:     commentRepo,
+		postRepo:        postRepo,
+		notificationSvc: notificationSvc,
 	}
 }
 
-// Create 댓글 생성
-func (s *CommentService) Create(postID uint, req *dto.CreateCommentRequest) (*dto.CommentResponse, error) {
-	// 게시글 존재 확인
-	_, err := s.postRepo.FindByID(postID)
+func (s *commentService) Create(ctx context.Context, postID uint, req *dto.CreateCommentRequest) (*domain.Comment, error) {
+	claims, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+
+	post, err := s.postRepo.FindByID(ctx, postID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPostNotExists
-		}
 		return nil, err
 	}
 
-	// 부모 댓글 확인 (대댓글인 경우)
+	var parentComment *domain.Comment
 	if req.ParentID != nil {
-		parent, err := s.commentRepo.FindByID(*req.ParentID)
+		parentComment, err = s.commentRepo.FindByID(ctx, *req.ParentID)
 		if err != nil {
-			return nil, errors.New("부모 댓글을 찾을 수 없습니다")
-		}
-		if parent.PostID != postID {
-			return nil, errors.New("부모 댓글이 다른 게시글에 속합니다")
-		}
-
-		// 깊이 확인
-		depth := s.getCommentDepth(parent)
-		if depth >= MaxReplyDepth {
-			return nil, errors.New("더 이상 대댓글을 작성할 수 없습니다")
+			return nil, err
 		}
 	}
 
 	comment := &domain.Comment{
 		PostID:   postID,
 		ParentID: req.ParentID,
+		AuthorID: claims.UserID,
 		Content:  req.Content,
-		Author:   req.Author,
 	}
 
-	if err := s.commentRepo.Create(comment); err != nil {
+	if err := s.commentRepo.Create(ctx, comment); err != nil {
 		return nil, err
 	}
 
-	return s.toResponse(comment), nil
+	// 댓글/대댓글 알림
+	if req.ParentID != nil {
+		_ = s.notificationSvc.CreateReplyNotification(ctx, parentComment, comment, claims.UserID)
+	} else {
+		_ = s.notificationSvc.CreateCommentNotification(ctx, post, comment, claims.UserID)
+	}
+
+	// 멘션 알림
+	_ = s.notificationSvc.CreateMentionNotifications(ctx, req.Content, postID, comment.ID, claims.UserID)
+
+	return s.commentRepo.FindByID(ctx, comment.ID)
 }
 
-// GetByPostID 게시글의 댓글 목록 조회 (대댓글 포함)
-func (s *CommentService) GetByPostID(postID uint) ([]*dto.CommentResponse, error) {
-	_, err := s.postRepo.FindByID(postID)
+func (s *commentService) GetByPostID(ctx context.Context, postID uint) ([]*dto.CommentResponse, error) {
+	_, err := s.postRepo.FindByID(ctx, postID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPostNotExists
-		}
 		return nil, err
 	}
 
-	comments, err := s.commentRepo.FindByPostIDWithReplies(postID)
+	comments, err := s.commentRepo.FindByPostIDWithReplies(ctx, postID)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]*dto.CommentResponse, len(comments))
 	for i, comment := range comments {
-		result[i] = s.toResponseWithReplies(&comment)
+		result[i] = dto.ToCommentResponse(&comment)
 	}
 
 	return result, nil
 }
 
-// Update 댓글 수정
-func (s *CommentService) Update(id uint, req *dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
-	comment, err := s.commentRepo.FindByID(id)
+func (s *commentService) Update(ctx context.Context, id uint, req *dto.UpdateCommentRequest) (*domain.Comment, error) {
+	claims, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+
+	comment, err := s.commentRepo.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrCommentNotFound
-		}
 		return nil, err
+	}
+
+	// 권한 검사: 본인만 수정 가능
+	if comment.AuthorID != claims.UserID {
+		return nil, ErrForbidden
 	}
 
 	comment.Content = req.Content
 
-	if err := s.commentRepo.Update(comment); err != nil {
+	if err := s.commentRepo.Update(ctx, comment); err != nil {
 		return nil, err
 	}
 
-	return s.toResponse(comment), nil
+	return comment, nil
 }
 
-// Delete 댓글 삭제 (내용만 삭제)
-func (s *CommentService) Delete(id uint) error {
-	comment, err := s.commentRepo.FindByID(id)
+func (s *commentService) Delete(ctx context.Context, id uint) error {
+	claims, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		return ErrUnauthorized
+	}
+
+	comment, err := s.commentRepo.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrCommentNotFound
-		}
 		return err
 	}
 
-	// 대댓글이 있으면 내용만 변경
-	hasReplies, _ := s.commentRepo.HasReplies(id)
+	post, err := s.postRepo.FindByID(ctx, comment.PostID)
+	if err != nil {
+		return err
+	}
+
+	if !s.canDelete(comment, post, claims) {
+		return ErrForbidden
+	}
+
+	// 대댓글이 있으면 소프트 삭제
+	hasReplies, err := s.commentRepo.HasReplies(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	if hasReplies {
-		comment.Content = "[삭제된 댓글입니다]"
-		comment.Author = ""
-		return s.commentRepo.Update(comment)
+		comment.IsDeleted = true
+		comment.Content = ""
+		return s.commentRepo.Update(ctx, comment)
 	}
 
-	return s.commentRepo.Delete(id)
+	return s.commentRepo.Delete(ctx, id)
 }
 
-func (s *CommentService) toResponse(comment *domain.Comment) *dto.CommentResponse {
-	return &dto.CommentResponse{
-		ID:        comment.ID,
-		PostID:    comment.PostID,
-		ParentID:  comment.ParentID,
-		Content:   comment.Content,
-		Author:    comment.Author,
-		CreatedAt: comment.CreatedAt,
+// canDelete 삭제 권한 확인
+func (s *commentService) canDelete(comment *domain.Comment, post *domain.Post, claims *auth.CustomClaims) bool {
+	if comment.AuthorID == claims.UserID {
+		return true
 	}
-}
-
-// toResponseWithReplies 대댓글 포함 변환
-func (s *CommentService) toResponseWithReplies(comment *domain.Comment) *dto.CommentResponse {
-	resp := &dto.CommentResponse{
-		ID:        comment.ID,
-		PostID:    comment.PostID,
-		ParentID:  comment.ParentID,
-		Content:   comment.Content,
-		Author:    comment.Author,
-		CreatedAt: comment.CreatedAt,
+	if post.AuthorID == claims.UserID {
+		return true
 	}
-
-	if len(comment.Replies) > 0 {
-		resp.Replies = make([]*dto.CommentResponse, len(comment.Replies))
-		for i, reply := range comment.Replies {
-			resp.Replies[i] = s.toResponseWithReplies(&reply)
-		}
+	if claims.Role == string(domain.RoleAdmin) {
+		return true
 	}
-
-	return resp
-}
-
-// getCommentDepth 댓글 깊이 계산
-func (s *CommentService) getCommentDepth(comment *domain.Comment) int {
-	depth := 1
-	current := comment
-
-	for current.ParentID != nil {
-		parent, err := s.commentRepo.FindByID(*current.ParentID)
-		if err != nil {
-			break
-		}
-		current = parent
-		depth++
-	}
-
-	return depth
+	return false
 }
