@@ -32,11 +32,14 @@ func main() {
 
 	// 의존성 주입
 	postRepo := repository.NewPostRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
 	postService := service.NewPostService(postRepo, cfg)
+	commentService := service.NewCommentService(commentRepo, postRepo)
 	postHandler := handler.NewPostHandler(postService)
+	commentHandler := handler.NewCommentHandler(commentService)
 
 	// 라우터 설정
-	r := router.NewRouter(postHandler)
+	r := router.NewRouter(postHandler, commentHandler)
 	engine := r.Setup()
 
 	// 서버 시작

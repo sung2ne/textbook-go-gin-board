@@ -8,15 +8,17 @@ import (
 
 // Router 라우터
 type Router struct {
-	engine      *gin.Engine
-	postHandler *handler.PostHandler
+	engine         *gin.Engine
+	postHandler    *handler.PostHandler
+	commentHandler *handler.CommentHandler
 }
 
 // NewRouter 생성자
-func NewRouter(postHandler *handler.PostHandler) *Router {
+func NewRouter(postHandler *handler.PostHandler, commentHandler *handler.CommentHandler) *Router {
 	return &Router{
-		engine:      gin.Default(),
-		postHandler: postHandler,
+		engine:         gin.Default(),
+		postHandler:    postHandler,
+		commentHandler: commentHandler,
 	}
 }
 
@@ -34,6 +36,12 @@ func (r *Router) Setup() *gin.Engine {
 			posts.GET("/:id", r.postHandler.GetByID)
 			posts.PUT("/:id", r.postHandler.Update)
 			posts.DELETE("/:id", r.postHandler.Delete)
+
+			// 댓글 라우트
+			posts.GET("/:postId/comments", r.commentHandler.GetByPostID)
+			posts.POST("/:postId/comments", r.commentHandler.Create)
+			posts.PUT("/:postId/comments/:id", r.commentHandler.Update)
+			posts.DELETE("/:postId/comments/:id", r.commentHandler.Delete)
 		}
 	}
 
