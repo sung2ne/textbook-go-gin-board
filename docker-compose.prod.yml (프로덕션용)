@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  app:
+    environment:
+      - GIN_MODE=release
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  db:
+    restart: always
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data

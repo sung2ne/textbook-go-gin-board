@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# 빌드 결과물
+/bin
+/dist
+
+# 테스트
+*_test.go
+/testdata
+
+# 문서
+*.md
+LICENSE
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 환경 설정
+.env
+.env.*
