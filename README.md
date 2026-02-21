@@ -1,27 +1,75 @@
-# 소설처럼 읽는 Go 언어 - 실습 코드
+# 소설처럼 읽는 Go 언어 - 실습 코드 저장소
 
-[위키독스 교재](https://wikidocs.net/book/18987)의 실습 코드 저장소입니다.
+> **교재**: [소설처럼 읽는 Go 언어](https://wikidocs.net/book/18987) (위키독스)
+> **버전**: v1.3.1
 
-Go + Gin 프레임워크로 게시판 REST API를 단계별로 구현합니다.
+Go와 Gin 프레임워크로 게시판 API를 단계별로 만들어가는 교재의 실습 코드 저장소입니다.
 
-## 사용 방법
+## 기술 스택
 
-원하는 챕터의 브랜치를 체크아웃하면 해당 시점까지의 완성된 프로젝트를 받을 수 있습니다.
+| 분류 | 기술 |
+|------|------|
+| 언어 | Go 1.21+ |
+| 웹 프레임워크 | Gin |
+| ORM | GORM |
+| 데이터베이스 | PostgreSQL |
+| 캐시 | Redis |
+| 인증 | JWT |
+| 문서화 | Swagger (swaggo) |
+
+## 시작하기
+
+### 저장소 클론
 
 ```bash
-# 저장소 클론
 git clone https://github.com/sung2ne/textbook-go-gin-board.git
 cd textbook-go-gin-board
-
-# 원하는 챕터로 이동
-git checkout part04/chapter-02   # PART 04의 02장까지 완성된 코드
 ```
+
+### 원하는 챕터로 이동
+
+각 브랜치에는 해당 챕터까지의 코드가 누적 적용되어 있습니다.
+
+```bash
+# PART 04의 02장까지 완성된 코드
+git checkout part04/chapter-02
+
+# PART 07의 04장까지 완성된 코드
+git checkout part07/chapter-04
+```
+
+### 프로젝트 실행
+
+```bash
+# 의존성 설치
+go mod tidy
+
+# 설정 파일 확인 (config/config.yaml)
+# DB, Redis 연결 정보를 환경에 맞게 수정
+
+# 서버 실행
+go run cmd/api/main.go
+
+# Swagger UI (PART 09 이후)
+# http://localhost:8080/swagger/index.html
+```
+
+### Docker로 실행
+
+```bash
+# 개발 환경 (PostgreSQL + Redis 포함)
+docker-compose up -d
+```
+
+---
 
 ## 브랜치 목록
 
-각 브랜치는 해당 챕터까지의 코드가 누적 적용되어 독립적으로 빌드 가능합니다.
+> PART 01~03은 독립적인 예제 코드 위주라 별도 브랜치가 없습니다. PART 04부터 게시판 프로젝트가 시작됩니다.
 
-### PART 04. 게시판 만들기
+총 **35개** 브랜치가 PART별로 제공됩니다.
+
+### PART 04. 비인증 게시판
 
 | 브랜치 | 내용 |
 |--------|------|
@@ -74,56 +122,73 @@ git checkout part04/chapter-02   # PART 04의 02장까지 완성된 코드
 | `part09/chapter-02` | API 문서 작성 (핸들러 어노테이션) |
 | `part09/chapter-03` | 문서 고급 기능 (Security, Tags) |
 
-## 기술 스택
+### PART 10. 테스트
 
-- **언어**: Go 1.21+
-- **웹 프레임워크**: Gin
-- **ORM**: GORM
-- **데이터베이스**: MySQL, Redis
-- **인증**: JWT (golang-jwt)
-- **API 문서**: Swagger (swaggo/swag)
-- **로깅**: zerolog
-- **모니터링**: Prometheus
+| 브랜치 | 내용 |
+|--------|------|
+| `part10/chapter-01` | 단위 테스트 (Mock, testify) |
+| `part10/chapter-02` | 통합 테스트 (testutil, scenarios) |
+| `part10/chapter-03` | 테스트 자동화 (벤치마크) |
 
-## 실행 방법
+### PART 11. 배포
 
-```bash
-# 의존성 설치
-go mod tidy
+| 브랜치 | 내용 |
+|--------|------|
+| `part11/chapter-01` | Docker (Dockerfile, docker-compose) |
+| `part11/chapter-02` | 프로덕션 설정 (환경 변수, 로거, 워커) |
+| `part11/chapter-03` | 클라우드 배포 (Cloud Run, Fly.io, GitHub Actions) |
 
-# 설정 파일 확인
-# config/config.yaml에서 DB/Redis 연결 정보 설정
+### PART 12. 성능 최적화
 
-# 서버 실행
-go run cmd/api/main.go
+| 브랜치 | 내용 |
+|--------|------|
+| `part12/chapter-01` | 프로파일링 (pprof, trace) |
+| `part12/chapter-02` | 캐싱 (인메모리, Redis, HTTP 캐싱) |
+| `part12/chapter-03` | 데이터베이스 최적화 (인덱스, 쿼리, 레플리카) |
 
-# Swagger UI (PART 09 이후)
-# http://localhost:8080/swagger/index.html
-```
+### PART 13. 프로젝트 마무리
+
+| 브랜치 | 내용 |
+|--------|------|
+| `part13/chapter-01` | 코드 품질 (lint, 리뷰) |
+| `part13/chapter-02` | 보안 점검 |
+| `part13/chapter-03` | 다음 단계 |
+
+---
 
 ## 프로젝트 구조
 
 ```
-├── cmd/api/main.go          # 엔트리포인트
-├── config/                  # 설정 파일
+goboardapi/
+├── cmd/api/          # 애플리케이션 진입점
+├── config/           # 설정 파일
 ├── internal/
-│   ├── auth/                # JWT, 비밀번호 서비스
-│   ├── config/              # 설정 로더
-│   ├── database/            # DB 연결 (MySQL, Redis)
-│   ├── domain/              # 도메인 모델
-│   ├── dto/                 # 요청/응답 DTO
-│   ├── handler/             # HTTP 핸들러
-│   ├── middleware/           # 미들웨어
-│   ├── repository/          # 데이터 접근 계층
-│   ├── router/              # 라우팅
-│   └── service/             # 비즈니스 로직
-├── pkg/
-│   ├── pool/                # 워커 풀 (PART 08)
-│   ├── retry/               # 재시도 패턴 (PART 08)
-│   └── batch/               # 배치 처리 (PART 08)
-└── docs/                    # Swagger 문서 (PART 09)
+│   ├── domain/       # 도메인 모델 (Entity)
+│   ├── dto/          # 데이터 전송 객체
+│   ├── repository/   # 데이터 접근 계층
+│   ├── service/      # 비즈니스 로직
+│   ├── handler/      # HTTP 핸들러
+│   └── middleware/   # Gin 미들웨어
+└── pkg/              # 공통 유틸리티
 ```
+
+## 활용 팁
+
+**교재를 따라가며 직접 코딩하는 것을 추천합니다.** 저장소의 코드는 다음과 같은 상황에서 활용하세요.
+
+- 코드가 정상 동작하지 않을 때 비교 대상으로 활용
+- 특정 챕터부터 학습을 시작하고 싶을 때 해당 브랜치에서 출발
+- 전체 프로젝트 구조를 한눈에 파악하고 싶을 때 참고
+
+## 업데이트 이력
+
+| 날짜 | 버전 | 내용 |
+|------|------|------|
+| 2026-02-22 | v1.3.1 | 버그 수정: PART 08 select 문 예제 데드락 수정 (독자 문의 반영) |
+| 2026-02-21 | v1.3.0 | 기술 감사 반영: 모듈명 통일 (17개 파일), 편집 노트 3건, 시각자료 12건 변환 |
+| 2026-02-21 | v1.2.0 | PART 10~13 챕터별 브랜치 배포 (12개 추가, 총 36개) |
+| 2026-02-18 | v1.1.0 | GitHub 저장소 공개, PART 04~09 챕터별 브랜치 배포 (24개) |
 
 ## 라이선스
 
-이 저장소는 [소설처럼 읽는 Go 언어](https://wikidocs.net/book/18987) 교재의 실습 코드입니다.
+이 저장소의 코드는 교육 목적으로 자유롭게 사용할 수 있습니다.
