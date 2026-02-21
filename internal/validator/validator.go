@@ -1,19 +1,21 @@
 package validator
 
 import (
-	"regexp"
-
-	"github.com/go-playground/validator/v10"
+    "errors"
+    "regexp"
 )
 
-var usernameRegex = regexp.MustCompile(`^[가-힣a-zA-Z0-9_]+$`)
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
-// RegisterCustomValidators 커스텀 유효성 검사기 등록
-func RegisterCustomValidators(v *validator.Validate) {
-	v.RegisterValidation("username", validateUsername)
-}
-
-func validateUsername(fl validator.FieldLevel) bool {
-	username := fl.Field().String()
-	return usernameRegex.MatchString(username)
+func ValidateEmail(email string) error {
+    if email == "" {
+        return errors.New("email is required")
+    }
+    if len(email) > 254 {
+        return errors.New("email too long")
+    }
+    if !emailRegex.MatchString(email) {
+        return errors.New("invalid email format")
+    }
+    return nil
 }

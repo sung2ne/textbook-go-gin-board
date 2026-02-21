@@ -80,7 +80,6 @@ func (r *postRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-// FindByAuthorID 특정 사용자의 게시글 조회
 func (r *postRepository) FindByAuthorID(ctx context.Context, authorID uint, offset, limit int) ([]*domain.Post, int64, error) {
 	var posts []*domain.Post
 	var total int64
