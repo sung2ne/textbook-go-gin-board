@@ -1,9 +1,15 @@
 
-func (r *userRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
-    var count int64
+func (r *userRepository) FindInactiveBatch(ctx context.Context, afterID uint, limit int) ([]*domain.User, error) {
+    var users []*domain.User
+
+    thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
+
     err := r.db.WithContext(ctx).
-        Model(&domain.User{}).
-        Where("username = ?", username).
-        Count(&count).Error
-    return count > 0, err
+        Where("id > ?", afterID).
+        Where("last_login_at < ?", thirtyDaysAgo).
+        Order("id ASC").
+        Limit(limit).
+        Find(&users).Error
+
+    return users, err
 }
