@@ -1,9 +1,9 @@
 
-func (r *userRepository) SearchByUsername(ctx context.Context, query string, limit int) ([]*domain.User, error) {
-    var users []*domain.User
+func (r *userRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+    var count int64
     err := r.db.WithContext(ctx).
-        Where("username LIKE ?", query+"%").
-        Limit(limit).
-        Find(&users).Error
-    return users, err
+        Model(&domain.User{}).
+        Where("username = ?", username).
+        Count(&count).Error
+    return count > 0, err
 }
