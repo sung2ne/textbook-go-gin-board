@@ -1,10 +1,13 @@
 
-// PostListResponse에 하이라이트 필드 추가
-type PostListResponse struct {
-    ID          uint      `json:"id"`
-    Title       string    `json:"title"`
-    Author      string    `json:"author"`
-    Views       int       `json:"views"`
-    CreatedAt   time.Time `json:"created_at"`
-    Highlight   string    `json:"highlight,omitempty"`  // 검색어 주변 텍스트
+// PostResponse 게시글 응답
+type PostResponse struct {
+    ID        uint        `json:"id"`
+    Title     string      `json:"title"`
+    Content   string      `json:"content"`
+    Author    *AuthorInfo `json:"author"`
+    Views     int         `json:"views"`
+    LikeCount int         `json:"like_count"`
+    IsLiked   bool        `json:"is_liked"` // 현재 사용자의 좋아요 여부
+    CreatedAt time.Time   `json:"created_at"`
+    UpdatedAt time.Time   `json:"updated_at"`
 }
