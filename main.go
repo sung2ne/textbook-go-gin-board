@@ -1,17 +1,39 @@
+package main
 
 import (
-    customValidator "goboardapi/internal/validator"
-    "github.com/gin-gonic/gin/binding"
-    "github.com/go-playground/validator/v10"
+    "fmt"
+    "sync"
 )
 
-func main() {
-    // ...
+type Result struct {
+    ID    int
+    Value int
+}
 
-    // 커스텀 유효성 검사기 등록
-    if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-        customValidator.RegisterCustomValidators(v)
+func main() {
+    var wg sync.WaitGroup
+    var mu sync.Mutex
+    results := make([]Result, 0)
+
+    for i := 1; i <= 5; i++ {
+        wg.Add(1)
+        go func(id int) {
+            defer wg.Done()
+
+            // 작업 수행
+            value := id * 10
+
+            // 결과 저장 (동기화 필요)
+            mu.Lock()
+            results = append(results, Result{ID: id, Value: value})
+            mu.Unlock()
+        }(i)
     }
 
-    // ...
+    wg.Wait()
+
+    fmt.Println("결과:")
+    for _, r := range results {
+        fmt.Printf("  ID: %d, Value: %d\n", r.ID, r.Value)
+    }
 }
