@@ -18,9 +18,9 @@ type Comment struct {
     DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
     // 연관관계
-    Post     Post       `gorm:"foreignKey:PostID" json:"-"`
-    Parent   *Comment   `gorm:"foreignKey:ParentID" json:"-"`
-    Replies  []Comment  `gorm:"foreignKey:ParentID" json:"replies,omitempty"`
+    Post    Post      `gorm:"foreignKey:PostID" json:"-"`
+    Parent  *Comment  `gorm:"foreignKey:ParentID" json:"-"`
+    Replies []Comment `gorm:"foreignKey:ParentID" json:"replies,omitempty"`
 }
 
 // TableName 테이블 이름 지정
