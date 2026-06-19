@@ -8,11 +8,16 @@ import (
     "gorm.io/gorm"
 )
 
-type User struct {
+type Post struct {
     gorm.Model
-    Name  string `gorm:"size:100"`
-    Email string `gorm:"uniqueIndex"`
-    Age   int
+    Title string `gorm:"size:200"`
+    Tags  []Tag  `gorm:"many2many:post_tags"`
+}
+
+type Tag struct {
+    gorm.Model
+    Name  string `gorm:"size:50;uniqueIndex"`
+    Posts []Post `gorm:"many2many:post_tags"`
 }
 
 func main() {
@@ -22,16 +27,24 @@ func main() {
         log.Fatal(err)
     }
 
-    db.AutoMigrate(&User{})
+    // 마이그레이션
+    db.AutoMigrate(&Post{}, &Tag{})
 
-    // 단건 생성
-    user := User{Name: "홍길동", Email: "hong@example.com", Age: 30}
-    result := db.Create(&user)
+    // 태그 먼저 생성
+    goTag := Tag{Name: "Go"}
+    tutorialTag := Tag{Name: "Tutorial"}
+    db.Create(&goTag)
+    db.Create(&tutorialTag)
 
-    if result.Error != nil {
-        log.Fatal("생성 실패:", result.Error)
+    // 게시글과 태그 연결
+    post := Post{
+        Title: "Go GORM 튜토리얼",
+        Tags:  []Tag{goTag, tutorialTag},
     }
+    db.Create(&post)
 
-    fmt.Printf("생성된 ID: %d\n", user.ID)
-    fmt.Printf("영향받은 행: %d\n", result.RowsAffected)
+    fmt.Printf("게시글: %s\n", post.Title)
+    for _, tag := range post.Tags {
+        fmt.Printf("- 태그: %s\n", tag.Name)
+    }
 }
