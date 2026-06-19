@@ -1,23 +1,33 @@
 
-func (h *AuthHandler) ForgotPassword(c *gin.Context) {
-    var req ForgotPasswordRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+// @Summary 로그인
+// @Description 이메일과 비밀번호로 로그인합니다
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "로그인 정보"
+// @Success 200 {object} TokenResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /auth/login [post]
+func (h *AuthHandler) Login(c *gin.Context) {}
 
-    user, err := h.userService.FindByEmail(c.Request.Context(), req.Email)
-    if err != nil {
-        // 보안상 존재 여부를 알리지 않음
-        c.JSON(http.StatusOK, gin.H{"message": "이메일을 확인해주세요"})
-        return
-    }
+// @Summary 회원가입
+// @Description 새 계정을 생성합니다
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body SignupRequest true "회원가입 정보"
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Router /auth/signup [post]
+func (h *AuthHandler) Signup(c *gin.Context) {}
 
-    token, _ := h.authService.GenerateResetToken(user.ID)
-    resetLink := fmt.Sprintf("%s/reset-password?token=%s", h.config.BaseURL, token)
-
-    // 우선순위 높음 (비밀번호 재설정은 긴급)
-    h.emailService.SendPasswordReset(c.Request.Context(), user.Email, user.Username, resetLink)
-
-    c.JSON(http.StatusOK, gin.H{"message": "이메일을 확인해주세요"})
-}
+// @Summary 토큰 갱신
+// @Description Refresh Token으로 Access Token을 갱신합니다
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RefreshRequest true "Refresh Token"
+// @Success 200 {object} TokenResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /auth/refresh [post]
+func (h *AuthHandler) Refresh(c *gin.Context) {}
