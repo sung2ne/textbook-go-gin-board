@@ -1,24 +1,25 @@
+package config
 
-func Load(path string) (*Config, error) {
-    viper.SetConfigFile(path)
-    viper.SetConfigType("yaml")
+import (
+    "time"
 
-    // 환경 변수 바인딩
-    viper.AutomaticEnv()
-    viper.SetEnvPrefix("GOBOARD")  // GOBOARD_DATABASE_PASSWORD 형식으로 사용
+    "github.com/caarlos0/env/v10"
+)
 
-    // 환경 변수 키 매핑
-    viper.BindEnv("database.password", "GOBOARD_DB_PASSWORD")
-    viper.BindEnv("database.host", "GOBOARD_DB_HOST")
+type Config struct {
+    DatabaseURL    string        `env:"DATABASE_URL,required"`
+    JWTSecret      string        `env:"JWT_SECRET" envDefault:"dev-secret"`
+    Port           int           `env:"PORT" envDefault:"8080"`
+    ReadTimeout    time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
+    WriteTimeout   time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
+    AllowedOrigins []string      `env:"ALLOWED_ORIGINS" envSeparator:"," envDefault:"http://localhost:3000"`
+    Debug          bool          `env:"DEBUG" envDefault:"false"`
+}
 
-    if err := viper.ReadInConfig(); err != nil {
-        return nil, fmt.Errorf("설정 파일 읽기 실패: %w", err)
+func Load() (*Config, error) {
+    cfg := &Config{}
+    if err := env.Parse(cfg); err != nil {
+        return nil, err
     }
-
-    cfg = &Config{}
-    if err := viper.Unmarshal(cfg); err != nil {
-        return nil, fmt.Errorf("설정 파싱 실패: %w", err)
-    }
-
     return cfg, nil
 }
