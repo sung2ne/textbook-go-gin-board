@@ -1,26 +1,26 @@
+package handler
 
-func (h *PostHandler) DeletePost(c *gin.Context) {
-    claims := middleware.MustGetCurrentUser(c)
-    id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+import (
+    "net/http"
+    "strconv"
 
-    post, err := h.postService.GetByID(c.Request.Context(), uint(id))
+    "github.com/gin-gonic/gin"
+)
+
+func (h *PostHandler) GetPost(c *gin.Context) {
+    ctx := c.Request.Context() // HTTP 요청의 context
+
+    id, _ := strconv.Atoi(c.Param("id"))
+
+    post, err := h.service.FindByID(ctx, uint(id))
     if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "게시글을 찾을 수 없습니다"})
+        if err == context.Canceled {
+            // 클라이언트가 연결 끊음
+            return
+        }
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
 
-    userRole := domain.Role(claims.Role)
-
-    // 조건 1: 본인 게시글
-    isOwner := post.AuthorID == claims.UserID
-
-    // 조건 2: 관리 권한
-    canManage := domain.HasPermission(userRole, domain.PermissionPostManage)
-
-    if !isOwner && !canManage {
-        c.JSON(http.StatusForbidden, gin.H{"error": "삭제 권한이 없습니다"})
-        return
-    }
-
-    // 삭제 처리...
+    c.JSON(http.StatusOK, post)
 }
