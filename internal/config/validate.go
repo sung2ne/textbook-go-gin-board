@@ -3,25 +3,31 @@ package config
 import (
     "errors"
     "fmt"
+    "net/url"
 )
 
 func (c *Config) Validate() error {
     var errs []error
 
-    if c.DatabaseURL == "" {
-        errs = append(errs, errors.New("DATABASE_URL is required"))
+    // 데이터베이스 URL 검증
+    if _, err := url.Parse(c.Database.URL); err != nil {
+        errs = append(errs, fmt.Errorf("invalid DATABASE_URL: %w", err))
     }
 
-    if c.JWTSecret == "" {
-        errs = append(errs, errors.New("JWT_SECRET is required"))
+    // 프로덕션 필수 검증
+    if c.IsProduction() {
+        if c.JWT.Secret == "dev-secret" || len(c.JWT.Secret) < 32 {
+            errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters in production"))
+        }
+
+        if c.App.Debug {
+            errs = append(errs, errors.New("DEBUG must be false in production"))
+        }
     }
 
-    if c.JWTSecret == "dev-secret" && !c.Debug {
-        errs = append(errs, errors.New("JWT_SECRET must be changed in production"))
-    }
-
-    if c.Port < 1 || c.Port > 65535 {
-        errs = append(errs, fmt.Errorf("PORT must be between 1 and 65535, got %d", c.Port))
+    // 커넥션 풀 검증
+    if c.Database.MaxIdleConns > c.Database.MaxOpenConns {
+        errs = append(errs, errors.New("DB_MAX_IDLE_CONNS cannot exceed DB_MAX_OPEN_CONNS"))
     }
 
     if len(errs) > 0 {
