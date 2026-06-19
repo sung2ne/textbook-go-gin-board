@@ -1,15 +1,15 @@
 package main
 
 import (
-    "log"
-    "net/http"
+    "gin-tutorial/handler"
+
+    "github.com/gin-gonic/gin"
 )
 
 func main() {
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        w.Write([]byte("Hello, Go!"))
-    })
+    r := gin.Default()
 
-    log.Println("서버 시작: http://localhost:8080")
-    log.Fatal(http.ListenAndServe(":8080", nil))
+    r.GET("/", handler.Hello)
+
+    r.Run(":8080")
 }
