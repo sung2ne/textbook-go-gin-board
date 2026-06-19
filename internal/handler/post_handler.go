@@ -1,41 +1,26 @@
 
-func (h *PostHandler) UpdatePost(c *gin.Context) {
-    id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "잘못된 ID 형식"})
-        return
-    }
-
-    var req dto.UpdatePostRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
-
-    post, err := h.postService.Update(c.Request.Context(), uint(id), &req)
-    if err != nil {
-        h.handleError(c, err)
-        return
-    }
-
-    c.JSON(http.StatusOK, dto.SuccessResponse(dto.ToPostResponse(post)))
-}
-
 func (h *PostHandler) DeletePost(c *gin.Context) {
-    id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+    claims := middleware.MustGetCurrentUser(c)
+    id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+
+    post, err := h.postService.GetByID(c.Request.Context(), uint(id))
     if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "잘못된 ID 형식"})
+        c.JSON(http.StatusNotFound, gin.H{"error": "게시글을 찾을 수 없습니다"})
         return
     }
 
-    err = h.postService.Delete(c.Request.Context(), uint(id))
-    if err != nil {
-        h.handleError(c, err)
+    userRole := domain.Role(claims.Role)
+
+    // 조건 1: 본인 게시글
+    isOwner := post.AuthorID == claims.UserID
+
+    // 조건 2: 관리 권한
+    canManage := domain.HasPermission(userRole, domain.PermissionPostManage)
+
+    if !isOwner && !canManage {
+        c.JSON(http.StatusForbidden, gin.H{"error": "삭제 권한이 없습니다"})
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{
-        "success": true,
-        "message": "게시글이 삭제되었습니다",
-    })
+    // 삭제 처리...
 }
