@@ -1,0 +1,22 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ .title }}</title>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">홈</a>
+            <a href="/about">소개</a>
+        </nav>
+    </header>
+    <main>
+        {{ template "content" . }}
+    </main>
+    <footer>
+        <p>&copy; 2024 My Site</p>
+    </footer>
+</body>
+</html>
+{{ end }}

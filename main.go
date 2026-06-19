@@ -1,39 +1,57 @@
 package main
 
 import (
-    "net/http"
-    "path/filepath"
+    "myapp/response"
 
     "github.com/gin-gonic/gin"
 )
 
+type User struct {
+    ID    int    `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
 func main() {
     r := gin.Default()
 
-    // 업로드 파일 크기 제한 (8MB)
-    r.MaxMultipartMemory = 8 << 20
+    // 사용자 목록
+    r.GET("/users", func(c *gin.Context) {
+        users := []User{
+            {1, "Alice", "alice@example.com"},
+            {2, "Bob", "bob@example.com"},
+        }
 
-    r.POST("/upload", func(c *gin.Context) {
-        // 폼에서 파일 가져오기
-        file, err := c.FormFile("file")
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        response.List(c, users, 1, 10, 2)
+    })
+
+    // 사용자 상세
+    r.GET("/users/:id", func(c *gin.Context) {
+        id := c.Param("id")
+
+        if id == "0" {
+            response.NotFound(c, "사용자를 찾을 수 없습니다")
             return
         }
 
-        // 파일 저장
-        filename := filepath.Base(file.Filename)
-        dst := "./uploads/" + filename
+        user := User{1, "Alice", "alice@example.com"}
+        response.Success(c, user)
+    })
 
-        if err := c.SaveUploadedFile(file, dst); err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    // 사용자 생성
+    r.POST("/users", func(c *gin.Context) {
+        var req struct {
+            Name  string `json:"name" binding:"required"`
+            Email string `json:"email" binding:"required,email"`
+        }
+
+        if err := c.ShouldBindJSON(&req); err != nil {
+            response.BadRequest(c, err.Error())
             return
         }
 
-        c.JSON(http.StatusOK, gin.H{
-            "filename": filename,
-            "size":     file.Size,
-        })
+        user := User{1, req.Name, req.Email}
+        response.Created(c, user)
     })
 
     r.Run(":8080")
