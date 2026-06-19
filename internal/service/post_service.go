@@ -1,14 +1,14 @@
 package service
 
-func (s *PostService) UpdatePostWriteThrough(ctx context.Context, post *model.Post) error {
-    // 1. DB 업데이트
-    if err := s.repo.Update(post); err != nil {
-        return err
-    }
+func (s *PostService) TransferPost(postID, newUserID uint) error {
+    // 트랜잭션 내 모든 쿼리는 Primary
+    return s.db.Transaction(func(tx *gorm.DB) error {
+        var post model.Post
+        if err := tx.First(&post, postID).Error; err != nil {  // Primary에서 읽기
+            return err
+        }
 
-    // 2. 캐시 갱신
-    key := fmt.Sprintf("post:%d", post.ID)
-    cache.SetRedis(ctx, key, post, 5*time.Minute)
-
-    return nil
+        post.UserID = newUserID
+        return tx.Save(&post).Error  // Primary에 쓰기
+    })
 }
