@@ -1,11 +1,11 @@
-module gin-tutorial
+module go-board
 
-go 1.22
-
-require github.com/gin-gonic/gin v1.11.0
+go 1.21
 
 require (
-    github.com/bytedance/sonic v1.11.6 // indirect
-    github.com/gabriel-vasile/mimetype v1.4.3 // indirect
-    // ... 기타 간접 의존성
+    github.com/gin-gonic/gin v1.11.0
+    // ... 기존 의존성
+    github.com/swaggo/gin-swagger v1.6.1
+    github.com/swaggo/files v1.0.1
+    github.com/swaggo/swag v1.16.6
 )
